@@ -9,4 +9,4 @@ SQL is an acronym for "Structured Query Language."  SQL is a language that allow
 within a database.
 
 
-![](permalink)
+![Intro to SQL](https://github.com/jmort16/Week-6-Homework/blob/main/Intro%20to%20SQL.png)
