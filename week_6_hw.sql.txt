@@ -1,0 +1,251 @@
+Week 6 Homework -- Jamie Mortensen
+
+1.  Show all customers whose last names start with T. Order them by first name from A-Z.
+
+SELECT first_name, last_name
+FROM customer
+WHERE last_name LIKE 'T%'
+ORDER BY first_name
+
+/* I selected the customer's first and last names with 'T' and the wildcard '%' so that
+the query would only return those customers with last names beginning with 'T'.  Then I
+used ORDER BY to arrange them alphabetically by first name. */
+
+2.  Show all rentals returned from 5/28/2005 to 6/1/2005
+
+SELECT rental_id, return_date
+FROM rental
+WHERE return_date BETWEEN '2005-05-28%' AND '2005-06-01%'
+ORDER BY return_date
+
+/* I used WHERE  BETWEEN to filter the return_date data to only those dates within the 
+requested date range, making sure to format the dates in my statement in the same manner
+as they are formatted in the table. Then I sorted by return_date to make it easier to 
+examine the data.*/
+
+3.  How would you determine which movies are rented the most?
+
+SELECT 
+	f.title, 
+	COUNT(rnt.rental_id) AS rent_num
+FROM 
+	film AS f
+LEFT JOIN inventory AS inv
+	ON f.film_id = inv.film_id
+	LEFT JOIN rental AS rnt
+	ON inv.inventory_id=rnt.inventory_id
+GROUP BY f.title
+ORDER BY rent_num DESC
+LIMIT 10;
+
+/*I need to count the rentals by using the rental_id column in the rental table, but
+I also need to connect that information to each film title for my final display.  To
+do this, I need to join 3 tables.  The title is in the film table, so I started there,
+but there is no common column between the film table and the rental table.  Because 
+of this, I started with the film table, then joined it with the inventory table simply
+because the inventory table contained both the inventory_id and film_id columns.  This
+allows me to use the inventory table as a transition from the film table (containing 
+the film titles) to the rental table (containing the number of times each film is
+rented). */
+
+4.  Show how much each customer spent on movies (for all time) . Order them from least to most.
+
+SELECT c.last_name, c.first_name, SUM(p.amount) AS total_spent
+FROM customer AS c
+LEFT JOIN payment AS p
+ON c.customer_id = p.customer_id
+GROUP BY c.last_name, c.first_name
+ORDER BY total_spent DESC
+LIMIT 10;
+
+/* I only joined two tables this time.  The names of the customers are in the customer
+table, but the amounts they paid for rentals is contained in the payment table.  I used
+a left join with customer on the left and payment on the right, taking the sum of the 
+payment amounts, grouped by customer name.  Then I listed the totals in descending
+order and limited the query to 10 records for the sake of efficiency. :/
+
+5.  Which actor was in the most movies in 2006 (based on this dataset)? Be sure to alias the actor 
+name and count as a more descriptive name. Order the results from most to least.
+
+SELECT 
+	a.first_name, 
+	a.last_name,
+	COUNT(f.release_year) AS number_of_films
+FROM film as f
+	LEFT JOIN film_actor as fa
+	ON f.film_id=fa.film_id
+	LEFT JOIN actor AS a
+	ON fa.actor_id=a.actor_id
+WHERE f.release_year=2006
+GROUP BY a.last_name, a.first_name
+ORDER BY number_of_films DESC
+LIMIT 10;
+
+/* Once again, I joined three tables.  The names of the actors were in the actor table,
+and the release year was in the film table.  Just like question 3, I had to introduce
+a third table to my code in order to transition from the actor table to the film table.
+The film_actor table contained both film_id and actor_id, so it was the perfect "middle"
+table in my joins.  I had to restrict the data by release year this time, so I used 
+WHERE to help me do that, and I used COUNT to find the number of films released that
+year grouped by actor. */
+
+6.  Write an explain plan for 4 and 5. Show the queries and explain what is happening in each 
+one. Use the following link to understand how this works http://postgresguide.com/performance/explain.html 
+
+	For question 4:
+
+	"Limit  (cost=444.92..444.95 rows=10 width=45) (actual time=8.459..8.462 rows=10 loops=1)"
+	"  ->  Sort  (cost=444.92..446.42 rows=599 width=45) (actual time=8.456..8.458 rows=10 loops=1)"
+	"        Sort Key: (sum(p.amount)) DESC"
+	"        Sort Method: top-N heapsort  Memory: 25kB"
+	"        ->  HashAggregate  (cost=424.49..431.98 rows=599 width=45) (actual time=8.104..8.291 rows=599 loops=1)"
+	"              Group Key: c.last_name, c.first_name"
+	"              Batches: 1  Memory Usage: 297kB"
+	"              ->  Hash Right Join  (cost=22.48..315.02 rows=14596 width=19) (actual time=0.244..4.033 rows=14596 loops=1)"
+	"                    Hash Cond: (p.customer_id = c.customer_id)"
+	"                    ->  Seq Scan on payment p  (cost=0.00..253.96 rows=14596 width=8) (actual time=0.011..0.926 rows=14596 loops=1)"
+	"                    ->  Hash  (cost=14.99..14.99 rows=599 width=17) (actual time=0.205..0.205 rows=599 loops=1)"
+	"                          Buckets: 1024  Batches: 1  Memory Usage: 39kB"
+	"                          ->  Seq Scan on customer c  (cost=0.00..14.99 rows=599 width=17) (actual time=0.031..0.114 rows=599 loops=1)"
+	"Planning Time: 2.685 ms"
+	"Execution Time: 8.584 ms"
+
+	For question 5:
+	"Limit  (cost=244.16..244.19 rows=10 width=21) (actual time=5.096..5.099 rows=10 loops=1)"
+	"  ->  Sort  (cost=244.16..244.48 rows=128 width=21) (actual time=5.094..5.096 rows=10 loops=1)"
+	"        Sort Key: (count(f.release_year)) DESC"
+	"        Sort Method: top-N heapsort  Memory: 26kB"
+	"        ->  HashAggregate  (cost=240.12..241.40 rows=128 width=21) (actual time=5.013..5.038 rows=200 loops=1)"
+	"              Group Key: a.last_name, a.first_name"
+	"              Batches: 1  Memory Usage: 64kB"
+	"              ->  Hash Left Join  (cost=85.50..199.15 rows=5462 width=17) (actual time=1.384..3.864 rows=5465 loops=1)"
+	"                    Hash Cond: (fa.actor_id = a.actor_id)"
+	"                    ->  Hash Right Join  (cost=79.00..178.01 rows=5462 width=6) (actual time=1.301..2.955 rows=5465 loops=1)"
+	"                          Hash Cond: (fa.film_id = f.film_id)"
+	"                          ->  Seq Scan on film_actor fa  (cost=0.00..84.62 rows=5462 width=4) (actual time=0.018..0.348 rows=5462 loops=1)"
+	"                          ->  Hash  (cost=66.50..66.50 rows=1000 width=8) (actual time=1.267..1.267 rows=1000 loops=1)"
+	"                                Buckets: 1024  Batches: 1  Memory Usage: 48kB"
+	"                                ->  Seq Scan on film f  (cost=0.00..66.50 rows=1000 width=8) (actual time=0.027..1.132 rows=1000 loops=1)"
+	"                                      Filter: ((release_year)::integer = 2006)"
+	"                    ->  Hash  (cost=4.00..4.00 rows=200 width=17) (actual time=0.067..0.067 rows=200 loops=1)"
+	"                          Buckets: 1024  Batches: 1  Memory Usage: 18kB"
+	"                          ->  Seq Scan on actor a  (cost=0.00..4.00 rows=200 width=17) (actual time=0.012..0.029 rows=200 loops=1)"
+	"Planning Time: 2.283 ms"
+	"Execution Time: 5.205 ms"
+
+7.  What is the average rental rate per genre?
+
+SELECT 
+	c.name, 
+	AVG(f.rental_rate) AS avg_rental_rate
+FROM 
+	category AS c
+	LEFT JOIN film_category as fc
+	ON c.category_id = fc.category_id
+	LEFT JOIN film AS f
+	ON fc.film_id=f.film_id
+GROUP BY c.name
+ORDER BY avg_rental_rate DESC;
+
+/* I joined three tables here:  category was leftmost, film_category was in the "middle", and film was the rightmost
+table in the joins.  I used category_id to join the category and film_category tables, then I used film_id to join
+the film_category and film tables.  I used AVG to average the rental rate based on category, then I decided to sort 
+the list from category with the highest rental rate to category with the lowest. */ 
+
+8.  How many films were returned late? Early? On time?
+
+SELECT
+	CASE 
+		WHEN EXTRACT(day FROM r.return_date - r.rental_date) > f.rental_duration THEN 'Late'
+		WHEN EXTRACT(day FROM r.return_date - r.rental_date) < f.rental_duration THEN 'Early'  
+		ELSE 'On Time' END
+		AS return_status,
+		COUNT(*)
+FROM film AS f
+	LEFT JOIN inventory AS inv
+	ON f.film_id = inv.film_id
+	LEFT JOIN rental AS r
+	ON inv.inventory_id=r.inventory_id
+GROUP BY return_status
+LIMIT 10;
+
+/*  WOW! This one was a doozy!  After A LOT of googling, here's what I did:  I knew that I wanted to compare the 
+rental_duration with the actual time rented for each rental in the database.  As mentioned in the explanations for
+previous questions, I joined three different tables to collect the columns I would need.  I used the CASE option to
+categorize each rental as early, on time, or late, labeling the column as return_status.  I had trouble comparing the
+rental_duration with the actual time rented, however, because the subtraction of dates was returning an interval,
+and SQL would not allow me to compare an interval and an integer.  I extracted the day from the interval so that I 
+could make the comparison I needed.  Then I grouped by return_status AND did a COUNT(*) so that the output would 
+display the number of early, on time, and late rentals.  WHEW!  */
+
+9.  What categories are the most rented and what are their total sales?
+
+SELECT 
+	c.name as category,
+	COUNT(r.rental_id) AS number_of_rentals,
+	SUM(p.amount) AS total_sales
+FROM
+	category AS c
+	LEFT JOIN film_category AS fc
+	ON c.category_id=fc.category_id
+	LEFT JOIN inventory AS inv
+	ON fc.film_id = inv.film_id
+	LEFT JOIN rental AS r
+	ON inv.inventory_id = r.inventory_id
+	LEFT JOIN payment AS p
+	ON r.rental_id=p.rental_id
+GROUP BY c.name
+ORDER BY number_of_rentals DESC;
+
+/*  I had to join 5 tables to do everything I needed to do for this question.  I started with the category table since
+it contained the name for each category.  I used an alias for it because "name" wasn't descriptive enough.  I joined
+that table to the film_category table (for transition only), then to the inventory table (another transition), then
+to the rental table (for the count of the rental_id), and finally to the payment table (for the total sales per
+category).  I grouped by category name, used COUNT for the number of rentals, SUM for the total sales, and ordered the
+resulting table by number_of_rentals in descending order.  That way, the top grossing categories are listed first. */
+
+10.  Create a view for 8 and a view for 9. Be sure to name them appropriately. 
+
+	For question 8:
+
+	CREATE VIEW DVD_Rental_Return_Status AS
+
+	SELECT
+		CASE 
+			WHEN EXTRACT(day FROM r.return_date - r.rental_date) > f.rental_duration THEN 'Late'
+			WHEN EXTRACT(day FROM r.return_date - r.rental_date) < f.rental_duration THEN 'Early'  
+			ELSE 'On Time' END
+			AS return_status,
+			COUNT(*)
+	FROM film AS f
+		LEFT JOIN inventory AS inv
+		ON f.film_id = inv.film_id
+		LEFT JOIN rental AS r
+		ON inv.inventory_id=r.inventory_id
+	GROUP BY return_status
+	LIMIT 10;
+
+	SELECT * FROM DVD_Rental_Return_Status;
+
+	For question 9:
+
+	CREATE VIEW Popular_Categories_and_Total_Sales AS
+
+	SELECT 
+		c.name as category,
+		COUNT(r.rental_id) AS number_of_rentals,
+		SUM(p.amount) AS total_sales
+	FROM
+		category AS c
+		LEFT JOIN film_category AS fc
+		ON c.category_id=fc.category_id
+		LEFT JOIN inventory AS inv
+		ON fc.film_id = inv.film_id
+		LEFT JOIN rental AS r
+		ON inv.inventory_id = r.inventory_id
+		LEFT JOIN payment AS p
+		ON r.rental_id=p.rental_id
+	GROUP BY c.name
+	ORDER BY number_of_rentals DESC;
+
+	SELECT * FROM Popular_Categories_and_Total_Sales ;
